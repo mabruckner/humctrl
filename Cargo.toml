@@ -1,0 +1,12 @@
+[package]
+name = "humctrl"
+version = "0.1.0"
+authors = ["Mitchell Bruckner <mbruckner807@gmail.com>"]
+
+
+[[bin]]
+name = "humctrl-bin"
+
+[dependencies]
+portaudio="0.7.0"
+hyper="0.9.10"
