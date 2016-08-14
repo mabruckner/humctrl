@@ -3,7 +3,7 @@ extern crate humctrl;
 extern crate hyper;
 use portaudio as pa;
 
-use humctrl::bad_dft;
+use humctrl::{bad_dft, better_dft};
 use std::sync::mpsc;
 use std::env;
 use hyper::Client;
@@ -213,7 +213,7 @@ fn main(){
         for i in 0..size {
             dat[i] = (vals[i*rate], 0.0);
         }
-        let dft = bad_dft(&dat);
+        let dft = better_dft(&dat);
         let (freq, vol) = get_freq(&dft, sample_rate as f32 / rate as f32);
 //        plot_bar(dft.iter().map(|v|{ (10.0*(v.0*v.0 + v.1*v.1)).sqrt() as usize}));
         println!("{}Hz\t@\t{}dB",freq, vol);
