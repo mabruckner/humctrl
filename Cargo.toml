@@ -8,9 +8,17 @@ authors = ["Mitchell Bruckner <mbruckner807@gmail.com>"]
 name = "humctrl"
 
 [[bin]]
+name = "stream"
+
+[[bin]]
+name = "sweep"
+
+[[bin]]
 name = "dft"
 
 [dependencies]
 portaudio="0.7.0"
 hyper="0.9.10"
 rand="0.3"
+time="0.1"
+graph = { git = "https://github.com/mabruckner/graph.git", rev = "e31da88" }

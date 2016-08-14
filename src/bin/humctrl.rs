@@ -1,12 +1,14 @@
 extern crate portaudio;
 extern crate humctrl;
 extern crate hyper;
+extern crate time;
 use portaudio as pa;
 
 use humctrl::{bad_dft, better_dft};
 use std::sync::mpsc;
 use std::env;
 use hyper::Client;
+use time::{Duration, PreciseTime};
 
 #[derive(Debug, PartialEq, Eq)]
 struct Interval(usize, usize);
@@ -181,7 +183,7 @@ fn main(){
     for device in context.devices().unwrap() {
         print!("\t{:?}\n", device);
     }
-    let mut settings = context.default_input_stream_settings::<f32>(1, sample_rate, 2048).unwrap();
+    let mut settings = context.default_input_stream_settings::<f32>(1, sample_rate, 4096).unwrap();
         settings.flags = pa::stream_flags::CLIP_OFF;
     print!("settings: {:?}\n", settings);
 
@@ -190,7 +192,7 @@ fn main(){
     println!("Starting");
     stream.start().unwrap();
     println!("Started");
-    let size = 1024;
+    let size = 2048;
     let rate = 1;
     let samples = 10;
     let mut dat = Vec::new();
@@ -201,19 +203,30 @@ fn main(){
     let mut list = Vec::new();
     for iteration in 0..79 {
         println!("{} {}", iteration, list.len());
-        match stream.read_available().unwrap() {
+        let t_0 = PreciseTime::now();
+//        let vals = stream.read((size * rate) as u32).unwrap();
+        let t_1 = PreciseTime::now();
+        let vals = match stream.read_available().unwrap() {
             pa::stream::Available::Frames(num) => {
                 println!("read {}", num);
-                stream.read(num as u32).unwrap();
-                ()
+                if (num as usize) < size {
+                    stream.read(size as u32).unwrap()
+                } else {
+                    stream.read(size as u32).unwrap()
+                }
             },
-            _ => ()
-        }
-        let vals = stream.read((size * rate) as u32).unwrap();
+            _ => {
+                println!("THERE WAS AN ERROR!");
+                panic!("ERROR");
+            }
+        };
+        let t_1_5 = PreciseTime::now();
         for i in 0..size {
             dat[i] = (vals[i*rate], 0.0);
         }
+        let t_2 = PreciseTime::now();
         let dft = better_dft(&dat);
+        let t_3 = PreciseTime::now();
         let (freq, vol) = get_freq(&dft, sample_rate as f32 / rate as f32);
 //        plot_bar(dft.iter().map(|v|{ (10.0*(v.0*v.0 + v.1*v.1)).sqrt() as usize}));
         println!("{}Hz\t@\t{}dB",freq, vol);
@@ -223,6 +236,7 @@ fn main(){
         let freqs = to_freq(&dft, sample_rate as f32 / rate as f32);
         let spikes = peaks(&freqs).into_iter().filter(|x|{x.0 > 40.0}).collect();
         let fundamental = fundamental(&spikes, 8.0, 0.1);
+        let t_4 = PreciseTime::now();
         println!("{}", list.len());
         if let Some(val) = fundamental {
             list.push(val.clone());
@@ -231,20 +245,23 @@ fn main(){
             list.remove(0);
         }
         if let Some(seq) = recognize(&list, 0.13, 9.0, &target_off) {
-            println!("FOUND");
+            println!("FOUND OFF");
             trigger("{\"on\": false}", &addr, &user);
             list = Vec::new();
         }
         if let Some(seq) = recognize(&list, 0.13, 9.0, &target_on) {
-            println!("FOUND");
+            println!("FOUND ON");
             trigger("{\"on\": true}", &addr, &user);
             list = Vec::new();
         }
+        let t_5 = PreciseTime::now();
         println!("{}", list.len());
         println!("{}Hz\t@\t{}dB", big.0, big.1);
 //        println!("{:?}",spikes);
         println!("{:?}", fundamental);
         println!("{:?}", intervals(&list, 0.01, 10.0));
+        println!("{} {} {} {} {}", t_0.to(t_1), t_1.to(t_2), t_2.to(t_3), t_3.to(t_4), t_4.to(t_5));
+        println!("{}", t_1.to(t_1_5));
     }
     stream.stop().unwrap();
     println!("Closing");
